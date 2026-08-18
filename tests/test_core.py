@@ -103,3 +103,40 @@ class TestJobTrackerCore(unittest.TestCase):
         # Delete invalid ID
         deleted_invalid = self.tracker.delete_application("non-existent-id")
         self.assertFalse(deleted_invalid)
+
+    def test_statistics(self):
+        """Test calculation of statistics."""
+        # Stats on empty database
+        stats = self.tracker.get_statistics()
+        self.assertEqual(stats["total"], 0)
+        self.assertEqual(stats["salary"]["total_counted"], 0)
+
+        # Add applications with varying details
+        self.tracker.add_application("Company A", "Role A", "applied", salary=100000)
+        self.tracker.add_application("Company B", "Role B", "interviewing", salary=120000)
+        self.tracker.add_application("Company C", "Role C", "offered", salary=150000)
+        self.tracker.add_application("Company D", "Role D", "rejected") # No salary
+        self.tracker.add_application("Company E", "Role E", "offered", salary=170000)
+
+        stats = self.tracker.get_statistics()
+        self.assertEqual(stats["total"], 5)
+        self.assertEqual(stats["by_status"]["Applied"], 1)
+        self.assertEqual(stats["by_status"]["Interviewing"], 1)
+        self.assertEqual(stats["by_status"]["Offered"], 2)
+        self.assertEqual(stats["by_status"]["Rejected"], 1)
+
+        # Percentages (out of 5)
+        self.assertEqual(stats["percentages"]["Applied"], 20.0)
+        self.assertEqual(stats["percentages"]["Offered"], 40.0)
+
+        # Salary stats (4 with salary)
+        self.assertEqual(stats["salary"]["total_counted"], 4)
+        self.assertEqual(stats["salary"]["min"], 100000)
+        self.assertEqual(stats["salary"]["max"], 170000)
+        self.assertEqual(stats["salary"]["avg"], 135000.0)  # (100+120+150+170)/4 = 135
+
+        # Offered salary stats (2 with salary)
+        self.assertEqual(stats["offered_salary"]["total_counted"], 2)
+        self.assertEqual(stats["offered_salary"]["min"], 150000)
+        self.assertEqual(stats["offered_salary"]["max"], 170000)
+        self.assertEqual(stats["offered_salary"]["avg"], 160000.0)

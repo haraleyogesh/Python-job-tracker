@@ -124,3 +124,58 @@ class JobTracker:
             self.storage.save_all(apps)
             return True
         return False
+
+    def get_statistics(self) -> dict:
+        """Calculates and returns statistics on job applications."""
+        apps = self.storage.load_all()
+        total = len(apps)
+
+        stats = {
+            "total": total,
+            "by_status": {status.value: 0 for status in ApplicationStatus},
+            "percentages": {status.value: 0.0 for status in ApplicationStatus},
+            "salary": {
+                "min": None,
+                "max": None,
+                "avg": None,
+                "total_counted": 0
+            },
+            "offered_salary": {
+                "min": None,
+                "max": None,
+                "avg": None,
+                "total_counted": 0
+            }
+        }
+
+        if total == 0:
+            return stats
+
+        # Count statuses
+        for app in apps:
+            if isinstance(app.status, ApplicationStatus):
+                stats["by_status"][app.status.value] += 1
+            else:
+                status_str = str(app.status)
+                stats["by_status"][status_str] = stats["by_status"].get(status_str, 0) + 1
+
+        # Calculate percentages
+        for status_val, count in stats["by_status"].items():
+            stats["percentages"][status_val] = round((count / total) * 100, 2)
+
+        # Calculate salaries
+        salaries = [app.salary for app in apps if app.salary is not None]
+        if salaries:
+            stats["salary"]["min"] = min(salaries)
+            stats["salary"]["max"] = max(salaries)
+            stats["salary"]["avg"] = round(sum(salaries) / len(salaries), 2)
+            stats["salary"]["total_counted"] = len(salaries)
+
+        offered_salaries = [app.salary for app in apps if app.status == ApplicationStatus.OFFERED and app.salary is not None]
+        if offered_salaries:
+            stats["offered_salary"]["min"] = min(offered_salaries)
+            stats["offered_salary"]["max"] = max(offered_salaries)
+            stats["offered_salary"]["avg"] = round(sum(offered_salaries) / len(offered_salaries), 2)
+            stats["offered_salary"]["total_counted"] = len(offered_salaries)
+
+        return stats
